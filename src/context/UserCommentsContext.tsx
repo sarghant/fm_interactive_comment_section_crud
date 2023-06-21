@@ -20,14 +20,16 @@ export type Comment = {
 };
 type UserCommentsContext = {
   currentUser: User | null;
+  users: User[];
   comments: Comment[];
   submitUser: (user: User) => void;
+  loginUser: (username: string) => void;
   signout: () => void;
   addComment: (comment: Comment) => void;
   editComment: (id: string, content: string, replyId?: string) => void;
   deleteComment: (id: string, replyId?: string) => void;
   addReply: (id: string, commentReply: Comment) => void;
-  handleCommentScore: (id: string, vote: string) => void;
+  handleCommentScore: (id: string, vote: string, replyId?: string) => void;
 };
 type UserCommentsProviderProps = {
   children: ReactNode;
@@ -41,12 +43,17 @@ export function useUserComments() {
 
 export function UserCommentsProvider({ children }: UserCommentsProviderProps) {
   const [comments, setComments] = useLocalStorage<Comment[]>("COMMENTS", []);
+  const [users, setUsers] = useLocalStorage<User[]>("USERS", []);
   const [currentUser, setCurrentUser] = useLocalStorage<User | null>(
     "CURRENT USER",
-    {} as User
+    null
   );
   function submitUser(user: User) {
+    setUsers((u) => [...u, user]);
     setCurrentUser(user);
+  }
+  function loginUser(username: string) {
+    setCurrentUser(users.find((u) => u.username === username)!);
   }
   function signout() {
     setCurrentUser(null);
@@ -108,17 +115,32 @@ export function UserCommentsProvider({ children }: UserCommentsProviderProps) {
       })
     );
   }
-  function handleCommentScore(id: string, vote: string) {
+  function handleCommentScore(
+    id: string,
+    vote: string,
+    replyId: string | undefined
+  ) {
     setComments((c) =>
       c.map((comment) => {
-        if (comment.id === id) {
+        if (comment.id === id && !replyId) {
           return {
             ...comment,
             score: vote === "downvote" ? comment.score-- : comment.score++,
           };
-        } else {
-          return comment;
         }
+        if (replyId) {
+          const updatedReplies = comment.replies!.map((reply) => {
+            if (reply.id === replyId) {
+              return {
+                ...reply,
+                score: vote === "downvote" ? reply.score-- : reply.score++,
+              };
+            }
+            return reply;
+          });
+          return { ...comment, replies: updatedReplies };
+        }
+        return comment;
       })
     );
   }
@@ -126,8 +148,10 @@ export function UserCommentsProvider({ children }: UserCommentsProviderProps) {
     <UserCommentsContext.Provider
       value={{
         currentUser,
+        users,
         comments,
         submitUser,
+        loginUser,
         signout,
         addComment,
         editComment,

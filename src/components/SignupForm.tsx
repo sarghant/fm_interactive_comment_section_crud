@@ -6,16 +6,37 @@ import { useUserComments } from "../context/UserCommentsContext";
 export function SignupForm() {
   const [username, setUsername] = useState("");
   const [filepath, setFilepath] = useState("");
+  // Error states
+  const [hasUsernameError, setHasUsernameError] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { submitUser } = useUserComments();
+  const { users, submitUser } = useUserComments();
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    submitUser({
-      image: {
-        png: filepath,
-      },
-      username,
-    });
+    try {
+      if (
+        users.some(
+          (u) => u.username.toLowerCase() === username.toLowerCase()
+        ) ||
+        filepath === ""
+      ) {
+        throw new Error("Some of the fields are invalid.");
+      }
+      setHasUsernameError(false);
+      setHasImageError(false);
+      submitUser({
+        image: {
+          png: filepath,
+        },
+        username,
+      });
+    } catch (e) {
+      let message;
+      if (e instanceof Error) message = e.message;
+      console.log(message);
+      setHasUsernameError(true);
+      setHasImageError(true);
+    }
   }
   function handleClick(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
@@ -33,15 +54,24 @@ export function SignupForm() {
       <form onSubmit={handleSubmit}>
         <h3 className="text-center text-lg font-semibold mb-2">Sign up</h3>
         <div className="flex flex-col gap-1 mb-4">
-          <label htmlFor="username">Username</label>
+          <label htmlFor="username" className="text-gray-700">
+            Username
+          </label>
           <input
             type="text"
             id="username"
-            className="rounded border border-gray-500"
+            className={`border rounded ${
+              hasUsernameError ? "border-red-500" : "border-gray-500"
+            }`}
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
+          {hasUsernameError && (
+            <span className="text-red-500 text-sm mt-1">
+              Username already exists.
+            </span>
+          )}
         </div>
         <div className="flex gap-2 items-center mb-6">
           <input
@@ -50,8 +80,16 @@ export function SignupForm() {
             style={{ display: "none" }}
             onChange={handleFileChange}
           />
-          <span className="text-sm gray-500">
-            {filepath ? retrieveFilename(filepath) : "No image chosen."}
+          <span
+            className={`text-sm ${
+              hasImageError ? "text-red-500" : "text-gray-700"
+            }`}
+          >
+            {filepath
+              ? retrieveFilename(filepath)
+              : hasImageError
+              ? "Please, select an image."
+              : "No image chosen."}
           </span>
           <Button
             onClick={handleClick}

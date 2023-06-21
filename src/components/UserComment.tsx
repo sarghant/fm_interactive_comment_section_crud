@@ -23,8 +23,9 @@ type CommentActionProps = {
 };
 type CommentScoreProps = {
   commentId: string;
+  replyId?: string;
+  isCurrentUser: boolean;
   score: number;
-  onVote: (id: string, vote: string) => void;
 };
 type CommentEditFormProps = {
   commentRootId: string;
@@ -52,7 +53,7 @@ export function UserComment({
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
-  const { currentUser, handleCommentScore, deleteComment } = useUserComments();
+  const { currentUser, deleteComment } = useUserComments();
   const isCurrentUser = currentUser?.username === user.username;
   const timeOfPost = useMemo(() => timeAgo(new Date(createdAt)), [createdAt]);
   const atMentionIndex = content.split(" ").findIndex((c) => c === replyingTo); // Get the index of the @username mention at the start of replies to style it differently compared to the rest of the reply
@@ -64,8 +65,9 @@ export function UserComment({
         {/* Score */}
         <CommentScore
           commentId={id}
+          replyId={commentRootId === id ? "" : id}
+          isCurrentUser={isCurrentUser}
           score={score}
-          onVote={handleCommentScore}
         />
         {/* Username & comment */}
         <div className="w-full">
@@ -201,11 +203,18 @@ function CommentAction({
   }
 }
 
-function CommentScore({ commentId, score, onVote }: CommentScoreProps) {
+function CommentScore({
+  commentId,
+  replyId,
+  isCurrentUser,
+  score,
+}: CommentScoreProps) {
+  const { handleCommentScore } = useUserComments();
   return (
     <div className="absolute md:static bottom-4 left-5 flex-shrink-0 bg-gray-100 text-gray-400 rounded-lg p-2 md:py-4 md:px-0 w-max md:w-10 flex md:flex-col items-center gap-4">
       <button
-        onClick={() => onVote(commentId, "upvote")}
+        disabled={isCurrentUser}
+        onClick={() => handleCommentScore(commentId, "upvote", replyId)}
         className="rounded-full p-1 hover:bg-gray-300 hover:bg-opacity-50 transition-colors"
       >
         <img src="/images/icon-plus.svg" />
@@ -218,7 +227,8 @@ function CommentScore({ commentId, score, onVote }: CommentScoreProps) {
         {score}
       </span>
       <button
-        onClick={() => onVote(commentId, "downvote")}
+        disabled={isCurrentUser}
+        onClick={() => handleCommentScore(commentId, "downvote", replyId)}
         className="rounded-full py-2 px-1 hover:bg-gray-300 hover:bg-opacity-50 transition-colors"
       >
         <img src="/images/icon-minus.svg" />
